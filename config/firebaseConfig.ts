@@ -8,12 +8,12 @@ import { Platform } from 'react-native';
 // TODO: Replace with your Firebase project configuration
 // Get this from Firebase Console > Project Settings > Your apps > Web app
 const firebaseConfig = {
-    apiKey: "AIzaSyBJNMUynV_i4h8YPVWIfZ0VvW-Dvex9aBw",
-    authDomain: "fir-course-4e4ec.firebaseapp.com",
-    projectId: "fir-course-4e4ec",
-    storageBucket: "fir-course-4e4ec.firebasestorage.app",
-    messagingSenderId: "632639207438",
-    appId: "1:632639207438:web:982eecba95a3127796645f"
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
 };
 
 // Initialize Firebase
