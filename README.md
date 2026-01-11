@@ -1,50 +1,67 @@
-# Welcome to your Expo app 👋
+# Mirello Journal App �✨
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A premium, high-fidelity React Native journal application built with the "Mirello" aesthetic. Capture your memories, track your adventures, and hit your personal milestones with a sleek, dark-themed experience.
 
-## Get started
+---
 
-1. Install dependencies
+## 🚀 Key Features
 
+### 🎯 Master Goals Tab
+Take control of your personal growth with a dedicated goals system.
+- **Full-Screen Creation**: Dedicated space for setting up your milestones.
+- **Dynamic Editing**: Refine your goals as they evolve.
+- **Progress Tracking**: High-fidelity progress bars and streak monitoring (Flames for streaks, Trophies for wins).
+- **Daily Reminders**: Integrated notification system to keep you on track.
+
+![Goal Creation Modal](file:///C:/Users/vinot/.gemini/antigravity/brain/34a8e810-4c78-40fd-86c0-1120ed7ac6b9/uploaded_image_1768055054652.png)
+*Professional Full-Screen Creation Experience*
+
+### 🔍 Search-First Layout
+Find any memory or milestone instantly across all main tabs.
+- **Unified Header**: Sleek, glassmorphic search bars at the top of Journal, Journey, and Goals.
+- **Real-time Filtering**: Results update as you type for lightning-fast recall.
+
+### 🏷️ Simplified Entry Flow
+- **Narrative-Focused**: Streamlined the entry process by removing complex tagging in favor of a clean, story-first interface.
+- **Rich Media**: Attach photos, location data, and weather automatically.
+
+### 🔒 Core Technology
+- **Persistent Auth**: Firebase authentication that remembers you between sessions.
+- **Zustand State**: High-performance global state management.
+- **Expo & React Native**: Built for a smooth, native feel on iOS and Android.
+
+---
+
+## 🎨 Design Aesthetic
+- **Mirello Theme**: Deep slate and teal palette with vibrant orange accents.
+- **Micro-animations**: Smooth transitions and press feedbacks using Reanimated.
+- **Glassmorphism**: Translucent headers and frosted-glass effects throughout.
+
+---
+
+## 🛠️ Development Setup
+
+1. **Install Dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
+2. **Configure Firebase**
+   Update your configuration in `config/firebaseConfig.ts`.
 
+3. **Start the App**
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 📸 Project Showcase
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+![Progress Cards](file:///C:/Users/vinot/.gemini/antigravity/brain/34a8e810-4c78-40fd-86c0-1120ed7ac6b9/uploaded_image_1768055274463.png)
+*High-Fidelity Goal Tracking Cards*
 
-## Get a fresh project
+---
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+> [!TIP]
+> This project is designed for users who value both productivity and premium visual experiences. Keep your memories safe and your goals in sight!

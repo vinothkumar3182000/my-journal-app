@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -30,6 +31,7 @@ export default function JournalScreen() {
     setSearchQuery,
     getFilteredEntries,
     isDarkMode,
+    userName,
   } = useJournalStore();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -39,35 +41,18 @@ export default function JournalScreen() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleAddEntry = async (data: {
-    content: string;
-    mood: string;
-    date: string;
-    title?: string;
-    tags?: string[];
-  }) => {
+  const handleAddEntry = async (data: Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (editingEntry) {
-      await updateEntry(editingEntry.id, {
-        content: data.content,
-        mood: data.mood as any,
-        title: data.title,
-        tags: data.tags,
-      });
+      await updateEntry(editingEntry.id, data);
       setEditingEntry(null);
     } else {
-      await addEntry({
-        content: data.content,
-        mood: data.mood as any,
-        date: data.date,
-        title: data.title,
-        tags: data.tags,
-      });
+      await addEntry(data);
     }
   };
 
@@ -125,13 +110,10 @@ export default function JournalScreen() {
       filtered = filtered.filter(e => new Date(e.date).toDateString() === dateStr);
     }
 
-    // Apply mood filter if a mood is selected
-    if (selectedMood) {
-      filtered = filtered.filter(e => e.mood === selectedMood);
-    }
+
 
     return filtered;
-  }, [entries, searchQuery, selectedFilter, selectedDate, selectedMood]);
+  }, [entries, searchQuery, selectedFilter, selectedDate]);
 
   const favoriteCount = useMemo(() => {
     return entries.filter(e => e.isFavorite).length;
@@ -192,20 +174,34 @@ export default function JournalScreen() {
         style={styles.header}
       >
         <View style={styles.headerContent}>
+          {/* Search Bar - Mirello Style */}
+          <View style={[styles.searchContainer, themeStyles.searchContainer, { marginBottom: 20 }]}>
+            <Ionicons name="search" size={18} color="#6B8E8A" style={styles.searchIcon} />
+            <TextInput
+              style={[styles.searchInput, themeStyles.searchInput]}
+              placeholder="Search your memories..."
+              placeholderTextColor="#6B8E8A"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={22} color="#6B8E8A" />
+              </Pressable>
+            )}
+          </View>
+
           <View style={styles.headerTop}>
             <View>
-              <Text style={[styles.headerTitle, themeStyles.headerTitle]}>My Journey</Text>
-              {selectedDate || selectedMood ? (
+              <Text style={[styles.headerTitle, themeStyles.headerTitle]}>{userName}</Text>
+              {selectedDate ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Text style={[styles.headerSubtitle, themeStyles.headerSubtitle]}>
                     {selectedDate && selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    {selectedDate && selectedMood && ' • '}
-                    {selectedMood && `${selectedMood.charAt(0).toUpperCase() + selectedMood.slice(1)} mood`}
                   </Text>
                   <Pressable
                     onPress={() => {
                       setSelectedDate(null);
-                      setSelectedMood(null);
                     }}
                     style={{ padding: 4 }}
                   >
@@ -225,30 +221,7 @@ export default function JournalScreen() {
               >
                 <Ionicons name="calendar-outline" size={22} color={themeStyles.headerButtonIcon.color} />
               </Pressable>
-              <Pressable
-                onPress={() => {/* Search */ }}
-                style={[styles.headerButton, themeStyles.headerButton]}
-              >
-                <Ionicons name="search-outline" size={22} color={themeStyles.headerButtonIcon.color} />
-              </Pressable>
             </View>
-          </View>
-
-          {/* Search Bar - Mirello Style */}
-          <View style={[styles.searchContainer, themeStyles.searchContainer]}>
-            <Ionicons name="search" size={18} color="#6B8E8A" style={styles.searchIcon} />
-            <TextInput
-              style={[styles.searchInput, themeStyles.searchInput]}
-              placeholder="Search your memories..."
-              placeholderTextColor="#6B8E8A"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color="#6B8E8A" />
-              </Pressable>
-            )}
           </View>
 
           {/* Filter Tabs */}
@@ -317,43 +290,45 @@ export default function JournalScreen() {
       </LinearGradient>
 
       {/* Entry List */}
-      {filteredEntries.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>📖</Text>
-          <Text style={[styles.emptyTitle, themeStyles.emptyTitle]}>Start Your Journey</Text>
-          <Text style={[styles.emptyText, themeStyles.emptyText]}>
-            Capture your memories and adventures
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredEntries}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <EntryCard
-              entry={item}
-              onPress={() => {
-                if (selectionMode) {
+      {
+        filteredEntries.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>📖</Text>
+            <Text style={[styles.emptyTitle, themeStyles.emptyTitle]}>Start Your Journey</Text>
+            <Text style={[styles.emptyText, themeStyles.emptyText]}>
+              Capture your memories and adventures
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredEntries}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item, index }) => (
+              <EntryCard
+                entry={item}
+                onPress={() => {
+                  if (selectionMode) {
+                    handleToggleSelection(item.id);
+                  } else {
+                    handleEditEntry(item);
+                  }
+                }}
+                onLongPress={() => {
+                  setSelectionMode(true);
                   handleToggleSelection(item.id);
-                } else {
-                  handleEditEntry(item);
-                }
-              }}
-              onLongPress={() => {
-                setSelectionMode(true);
-                handleToggleSelection(item.id);
-              }}
-              onDelete={() => handleDeleteEntry(item.id)}
-              onToggleFavorite={() => handleToggleFavorite(item.id)}
-              isSelected={selectedEntries.has(item.id)}
-              selectionMode={selectionMode}
-              index={index}
-            />
-          )}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+                }}
+                onDelete={() => handleDeleteEntry(item.id)}
+                onToggleFavorite={() => handleToggleFavorite(item.id)}
+                isSelected={selectedEntries.has(item.id)}
+                selectionMode={selectionMode}
+                index={index}
+              />
+            )}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )
+      }
 
       {/* Floating Add Button - Orange like Mirello */}
       <Pressable
@@ -383,8 +358,13 @@ export default function JournalScreen() {
           content: editingEntry.content,
           mood: editingEntry.mood,
           date: editingEntry.date,
+          time: editingEntry.time,
           title: editingEntry.title,
-          tags: editingEntry.tags,
+          photo: editingEntry.photo,
+          location: editingEntry.location,
+          latitude: editingEntry.latitude,
+          longitude: editingEntry.longitude,
+          weather: editingEntry.weather,
         } : null}
       />
 
@@ -393,6 +373,7 @@ export default function JournalScreen() {
         visible={calendarVisible}
         animationType="slide"
         presentationStyle="fullScreen"
+        statusBarTranslucent={true}
       >
         <CalendarView
           onClose={() => setCalendarVisible(false)}
@@ -400,13 +381,9 @@ export default function JournalScreen() {
             setSelectedDate(date);
             setCalendarVisible(false);
           }}
-          onMoodSelect={(mood) => {
-            setSelectedMood(mood);
-            setCalendarVisible(false);
-          }}
         />
       </Modal>
-    </View>
+    </View >
   );
 }
 
@@ -429,7 +406,7 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 20,
   },
   headerTitle: {
@@ -456,7 +433,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 6,
     borderWidth: 1,
   },
   searchIcon: {
@@ -534,11 +511,20 @@ const styles = StyleSheet.create({
     bottom: 100,
     right: 20,
     borderRadius: 28,
-    shadowColor: '#E89F3C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#E89F3C',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: '0 4px 12px rgba(232, 159, 60, 0.5)',
+      },
+    }),
   },
   fabGradient: {
     width: 56,

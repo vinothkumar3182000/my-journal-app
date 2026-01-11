@@ -4,12 +4,14 @@ import { create } from 'zustand';
 export interface JournalEntry {
     id: string;
     date: string;
+    time?: string; // Optional time in HH:mm format (e.g., "23:07")
     mood: 'amazing' | 'happy' | 'neutral' | 'sad' | 'terrible';
     content: string;
     title?: string;
     photo?: string;
-    tags?: string[];
     location?: string;
+    latitude?: number;
+    longitude?: number;
     weather?: string;
     isFavorite?: boolean;
     createdAt: number;
@@ -36,20 +38,67 @@ export interface Goal {
     lastCheckIn: string | null;
 }
 
+export interface JourneySnapshot {
+    timestamp: string;
+    latitude: number;
+    longitude: number;
+    address?: string;
+    moodRating?: number;
+    note?: string;
+    photo?: string;
+    event?: string;
+}
+
+export interface JourneySummary {
+    physicality: string;
+    mindset: string;
+    memory: string;
+    values: string;
+    reflectiveQuestions: string[];
+    narrative: string;
+}
+
+export interface RoutePoint {
+    latitude: number;
+    longitude: number;
+    timestamp: string;
+}
+
+export interface Journey {
+    id: string;
+    theme: string;
+    startTime: string;
+    endTime?: string;
+    isActive: boolean;
+    snapshots: JourneySnapshot[];
+    route: RoutePoint[];
+    summary?: JourneySummary;
+}
+
 interface JournalState {
     entries: JournalEntry[];
     goals: Goal[];
+    journeys: Journey[];
+    activeJourneyId: string | null;
     userName: string;
     isDarkMode: boolean;
     isLoading: boolean;
     searchQuery: string;
-    selectedTags: string[];
+    journeySearchQuery: string;
+    goalSearchQuery: string;
 
     // Journal actions
     addEntry: (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => Promise<void>;
     updateEntry: (id: string, updates: Partial<JournalEntry>) => Promise<void>;
     deleteEntry: (id: string) => Promise<void>;
     toggleFavorite: (id: string) => Promise<void>;
+
+    // Journey actions
+    startJourney: (theme: string) => Promise<void>;
+    addSnapshot: (snapshot: Omit<JourneySnapshot, 'timestamp'>) => Promise<void>;
+    addRoutePoint: (point: Omit<RoutePoint, 'timestamp'>) => Promise<void>;
+    endJourney: (summary: JourneySummary) => Promise<void>;
+    deleteJourney: (id: string) => Promise<void>;
 
     // Goal actions
     addGoal: (goal: Partial<Omit<Goal, 'id' | 'createdAt' | 'completedDays' | 'checkInHistory' | 'currentStreak' | 'longestStreak' | 'lastCheckIn'>> & Pick<Goal, 'title' | 'description' | 'targetDays' | 'isActive'>) => Promise<void>;
@@ -63,25 +112,121 @@ interface JournalState {
 
     // Search & Filter
     setSearchQuery: (query: string) => void;
-    setSelectedTags: (tags: string[]) => void;
+    setJourneySearchQuery: (query: string) => void;
+    setGoalSearchQuery: (query: string) => void;
     getFilteredEntries: () => JournalEntry[];
-    getAllTags: () => string[];
 
     // Data persistence
-    loadData: () => Promise<void>;
-    saveData: () => Promise<void>;
+    loadData: (userId?: string) => Promise<void>;
+    saveData: (userId?: string) => Promise<void>;
+    clearData: () => void;
 }
 
-const STORAGE_KEY = '@journal_app_data';
+const getStorageKey = (userId?: string) => {
+    return userId ? `@journal_app_data_${userId}` : '@journal_app_data';
+};
 
 export const useJournalStore = create<JournalState>((set, get) => ({
     entries: [],
     goals: [],
+    journeys: [],
+    activeJourneyId: null,
     userName: 'My Journal',
     isDarkMode: true, // Default to dark mode (Mirello theme)
     isLoading: true,
     searchQuery: '',
-    selectedTags: [],
+    journeySearchQuery: '',
+    goalSearchQuery: '',
+
+    startJourney: async (theme) => {
+        const id = Date.now().toString();
+        const newJourney: Journey = {
+            id,
+            theme,
+            startTime: new Date().toISOString(),
+            isActive: true,
+            snapshots: [],
+            route: [],
+        };
+
+        set((state) => ({
+            journeys: [newJourney, ...state.journeys],
+            activeJourneyId: id,
+        }));
+
+        await get().saveData();
+    },
+
+    addSnapshot: async (snapshot) => {
+        const { activeJourneyId, journeys } = get();
+        if (!activeJourneyId) return;
+
+        const newSnapshot: JourneySnapshot = {
+            ...snapshot,
+            timestamp: new Date().toISOString(),
+        };
+
+        set((state) => ({
+            journeys: state.journeys.map((j) =>
+                j.id === activeJourneyId
+                    ? { ...j, snapshots: [...j.snapshots, newSnapshot] }
+                    : j
+            ),
+        }));
+
+        await get().saveData();
+    },
+
+    addRoutePoint: async (point) => {
+        const { activeJourneyId } = get();
+        if (!activeJourneyId) return;
+
+        const newPoint: RoutePoint = {
+            ...point,
+            timestamp: new Date().toISOString(),
+        };
+
+        set((state) => ({
+            journeys: state.journeys.map((j) =>
+                j.id === activeJourneyId
+                    ? { ...j, route: [...j.route, newPoint] }
+                    : j
+            ),
+        }));
+
+        await get().saveData();
+    },
+
+    endJourney: async (summary) => {
+        const { activeJourneyId } = get();
+        if (!activeJourneyId) return;
+
+        set((state) => ({
+            journeys: state.journeys.map((j) =>
+                j.id === activeJourneyId
+                    ? {
+                        ...j,
+                        isActive: false,
+                        endTime: new Date().toISOString(),
+                        summary,
+                    }
+                    : j
+            ),
+            activeJourneyId: null,
+        }));
+
+        await get().saveData();
+    },
+
+    deleteJourney: async (id) => {
+        const { activeJourneyId } = get();
+        set((state) => ({
+            journeys: state.journeys.filter((j) => j.id !== id),
+            activeJourneyId: activeJourneyId === id ? null : activeJourneyId,
+        }));
+
+        await get().saveData();
+    },
 
     addEntry: async (entry) => {
         const newEntry: JournalEntry = {
@@ -224,47 +369,38 @@ export const useJournalStore = create<JournalState>((set, get) => ({
     setSearchQuery: (query) => {
         set({ searchQuery: query });
     },
+    setJourneySearchQuery: (query) => {
+        set({ journeySearchQuery: query });
+    },
 
-    setSelectedTags: (tags) => {
-        set({ selectedTags: tags });
+    setGoalSearchQuery: (query) => {
+        set({ goalSearchQuery: query });
     },
 
     getFilteredEntries: () => {
-        const { entries, searchQuery, selectedTags } = get();
-
+        const { entries, searchQuery } = get();
         return entries.filter((entry) => {
             // Search filter
             const matchesSearch = !searchQuery ||
                 entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 entry.title?.toLowerCase().includes(searchQuery.toLowerCase());
 
-            // Tags filter
-            const matchesTags = selectedTags.length === 0 ||
-                (entry.tags && entry.tags.some(tag => selectedTags.includes(tag)));
-
-            return matchesSearch && matchesTags;
+            return matchesSearch;
         });
     },
 
-    getAllTags: () => {
-        const { entries } = get();
-        const tagsSet = new Set<string>();
 
-        entries.forEach(entry => {
-            entry.tags?.forEach(tag => tagsSet.add(tag));
-        });
-
-        return Array.from(tagsSet);
-    },
-
-    loadData: async () => {
+    loadData: async (userId?: string) => {
         try {
-            const data = await AsyncStorage.getItem(STORAGE_KEY);
+            const storageKey = getStorageKey(userId);
+            const data = await AsyncStorage.getItem(storageKey);
             if (data) {
                 const parsed = JSON.parse(data);
                 set({
                     entries: parsed.entries || [],
                     goals: parsed.goals || [],
+                    journeys: parsed.journeys || [],
+                    activeJourneyId: parsed.activeJourneyId || null,
                     userName: parsed.userName || 'My Journal',
                     isDarkMode: parsed.isDarkMode !== undefined ? parsed.isDarkMode : true,
                     isLoading: false,
@@ -278,13 +414,25 @@ export const useJournalStore = create<JournalState>((set, get) => ({
         }
     },
 
-    saveData: async () => {
+    saveData: async (userId?: string) => {
         try {
-            const { entries, goals, userName, isDarkMode } = get();
-            const data = JSON.stringify({ entries, goals, userName, isDarkMode });
-            await AsyncStorage.setItem(STORAGE_KEY, data);
+            const { entries, goals, journeys, activeJourneyId, userName, isDarkMode } = get();
+            const data = JSON.stringify({ entries, goals, journeys, activeJourneyId, userName, isDarkMode });
+            const storageKey = getStorageKey(userId);
+            await AsyncStorage.setItem(storageKey, data);
         } catch (error) {
             console.error('Error saving data:', error);
         }
+    },
+
+    clearData: () => {
+        set({
+            entries: [],
+            goals: [],
+            journeys: [],
+            activeJourneyId: null,
+            userName: 'My Journal',
+            isDarkMode: true,
+        });
     },
 }));

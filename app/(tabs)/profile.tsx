@@ -1,8 +1,11 @@
+import { useAuthStore } from '@/store/authStore';
 import { useJournalStore } from '@/store/journalStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+    Alert,
     Image,
     Modal,
     Pressable,
@@ -15,12 +18,30 @@ import {
 } from 'react-native';
 
 export default function ProfileScreen() {
-    const { entries, isDarkMode, toggleTheme } = useJournalStore();
+    const { entries, isDarkMode, toggleTheme, setUserName: setStoreUserName } = useJournalStore();
+    const { user, signOut, updateDisplayName } = useAuthStore();
     const [editModalVisible, setEditModalVisible] = useState(false);
-    const [userName, setUserName] = useState('Travel Enthusiast');
+
+    // Initialize state from user object
+    const [userName, setUserName] = useState(user?.displayName || 'Guest User');
     const [userBio, setUserBio] = useState('Capturing memories, one journey at a time ✨');
-    const [userEmail, setUserEmail] = useState('traveler@example.com');
-    const [profileImage, setProfileImage] = useState('https://ui-avatars.com/api/?name=Travel+Enthusiast&size=200&background=E89F3C&color=fff');
+    const [userEmail, setUserEmail] = useState(user?.email || '');
+    const [profileImage, setProfileImage] = useState(user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || 'Guest'}&size=200&background=E89F3C&color=fff`);
+
+    // Update state when user changes
+    React.useEffect(() => {
+        if (user) {
+            const name = user.displayName || 'Guest User';
+            setUserName(name);
+            setStoreUserName(name); // Sync with store
+            setUserEmail(user.email || '');
+            setProfileImage(user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName || 'Guest'}&size=200&background=E89F3C&color=fff`);
+        } else {
+            setUserName('Guest User');
+            setUserEmail('');
+            setProfileImage(`https://ui-avatars.com/api/?name=Guest&size=200&background=E89F3C&color=fff`);
+        }
+    }, [user]);
 
     // Settings states
     const [dailyReminders, setDailyReminders] = useState(true);
@@ -40,9 +61,47 @@ export default function ProfileScreen() {
         setProfileImage(randomAvatar);
     };
 
-    const handleSaveProfile = () => {
-        setEditModalVisible(false);
-        // Save to storage
+    const handleSaveProfile = async () => {
+        try {
+            setEditModalVisible(false);
+
+            // Update Firebase Auth profile if user is logged in
+            if (user) {
+                await updateDisplayName(userName);
+            } else {
+                // Guest user - only update store
+                await setStoreUserName(userName);
+            }
+
+            Alert.alert('Success', 'Profile updated successfully');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to update profile. Please try again.');
+        }
+    };
+
+    const handleLogout = () => {
+        Alert.alert(
+            'Logout',
+            'Are you sure you want to logout?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Logout',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await signOut();
+                        } catch (error) {
+                            Alert.alert('Error', 'Failed to logout. Please try again.');
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleLoginNavigation = () => {
+        router.push('/auth/login');
     };
 
     // Dynamic styles
@@ -81,37 +140,62 @@ export default function ProfileScreen() {
             </LinearGradient>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Profile Card */}
-                <View style={[styles.profileCard, themeStyles.card, { borderWidth: 1 }]}>
-                    <View style={styles.profileImageContainer}>
-                        <Image
-                            source={{ uri: profileImage }}
-                            style={styles.profileImage}
-                        />
+                {/* Profile Card or Login Prompt */}
+                {user ? (
+                    <View style={[styles.profileCard, themeStyles.card, { borderWidth: 1 }]}>
+                        <View style={styles.profileImageContainer}>
+                            <Image
+                                source={{ uri: profileImage }}
+                                style={styles.profileImage}
+                            />
+                            <Pressable
+                                onPress={handleImageUpload}
+                                style={styles.editImageButton}
+                            >
+                                <Ionicons name="camera" size={18} color="#FFFFFF" />
+                            </Pressable>
+                        </View>
+
+                        <Text style={[styles.userName, themeStyles.text]}>{userName}</Text>
+                        <Text style={[styles.userBio, themeStyles.subText]}>{userBio}</Text>
+
                         <Pressable
-                            onPress={handleImageUpload}
-                            style={styles.editImageButton}
+                            onPress={() => setEditModalVisible(true)}
+                            style={styles.editProfileButton}
                         >
-                            <Ionicons name="camera" size={18} color="#FFFFFF" />
+                            <LinearGradient
+                                colors={['#E89F3C', '#D68A2E']}
+                                style={styles.editButtonGradient}
+                            >
+                                <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+                                <Text style={styles.editButtonText}>Edit Profile</Text>
+                            </LinearGradient>
                         </Pressable>
                     </View>
+                ) : (
+                    <View style={[styles.profileCard, themeStyles.card, { borderWidth: 1 }]}>
+                        <View style={[styles.profileImageContainer, { marginBottom: 16 }]}>
+                            <View style={[styles.profileImage, { backgroundColor: isDarkMode ? '#1E3E3B' : '#E2E8F0', justifyContent: 'center', alignItems: 'center' }]}>
+                                <Ionicons name="person" size={40} color={isDarkMode ? '#6B8E8A' : '#94A3B8'} />
+                            </View>
+                        </View>
+                        <Text style={[styles.userName, themeStyles.text]}>Guest User</Text>
+                        <Text style={[styles.userBio, themeStyles.subText]}>Sign in to sync your journals across devices</Text>
 
-                    <Text style={[styles.userName, themeStyles.text]}>{userName}</Text>
-                    <Text style={[styles.userBio, themeStyles.subText]}>{userBio}</Text>
-
-                    <Pressable
-                        onPress={() => setEditModalVisible(true)}
-                        style={styles.editProfileButton}
-                    >
-                        <LinearGradient
-                            colors={['#E89F3C', '#D68A2E']}
-                            style={styles.editButtonGradient}
+                        <Pressable
+                            onPress={handleLoginNavigation}
+                            style={styles.editProfileButton}
                         >
-                            <Ionicons name="create-outline" size={18} color="#FFFFFF" />
-                            <Text style={styles.editButtonText}>Edit Profile</Text>
-                        </LinearGradient>
-                    </Pressable>
-                </View>
+                            <LinearGradient
+                                colors={['#E89F3C', '#D68A2E']}
+                                style={styles.editButtonGradient}
+                            >
+                                <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
+                                <Text style={styles.editButtonText}>Login / Sign Up</Text>
+                            </LinearGradient>
+                        </Pressable>
+                    </View>
+                )}
 
                 {/* Stats Grid */}
                 <View style={styles.statsContainer}>
@@ -185,37 +269,45 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                {/* Account Section */}
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, themeStyles.text]}>Account</Text>
+                {/* Account Section - Only show if logged in */}
+                {user && (
+                    <View style={styles.section}>
+                        <Text style={[styles.sectionTitle, themeStyles.text]}>Account</Text>
 
-                    <Pressable style={[styles.menuItem, themeStyles.card]}>
-                        <View style={styles.menuLeft}>
-                            <Ionicons name="mail-outline" size={22} color={themeStyles.icon.color} />
-                            <Text style={[styles.menuText, themeStyles.text]}>Email</Text>
-                        </View>
-                        <View style={styles.menuRight}>
-                            <Text style={[styles.menuValue, themeStyles.subText]}>{userEmail}</Text>
+                        <Pressable style={[styles.menuItem, themeStyles.card]}>
+                            <View style={[styles.menuLeft, { flex: 0, marginRight: 16 }]}>
+                                <Ionicons name="mail-outline" size={22} color={themeStyles.icon.color} />
+                                <Text style={[styles.menuText, themeStyles.text]}>Email</Text>
+                            </View>
+                            <View style={[styles.menuRight, { flex: 1, justifyContent: 'flex-end', overflow: 'hidden' }]}>
+                                <Text
+                                    style={[styles.menuValue, themeStyles.subText, { flexShrink: 1, textAlign: 'right' }]}
+                                    numberOfLines={1}
+                                    ellipsizeMode="tail"
+                                >
+                                    {userEmail}
+                                </Text>
+                                <Ionicons name="chevron-forward" size={20} color={themeStyles.subText.color} style={{ marginLeft: 4 }} />
+                            </View>
+                        </Pressable>
+
+                        <Pressable style={[styles.menuItem, themeStyles.card]}>
+                            <View style={styles.menuLeft}>
+                                <Ionicons name="lock-closed-outline" size={22} color={themeStyles.icon.color} />
+                                <Text style={[styles.menuText, themeStyles.text]}>Change Password</Text>
+                            </View>
                             <Ionicons name="chevron-forward" size={20} color={themeStyles.subText.color} />
-                        </View>
-                    </Pressable>
+                        </Pressable>
 
-                    <Pressable style={[styles.menuItem, themeStyles.card]}>
-                        <View style={styles.menuLeft}>
-                            <Ionicons name="lock-closed-outline" size={22} color={themeStyles.icon.color} />
-                            <Text style={[styles.menuText, themeStyles.text]}>Change Password</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color={themeStyles.subText.color} />
-                    </Pressable>
-
-                    <Pressable style={[styles.menuItem, themeStyles.card]}>
-                        <View style={styles.menuLeft}>
-                            <Ionicons name="shield-checkmark-outline" size={22} color={themeStyles.icon.color} />
-                            <Text style={[styles.menuText, themeStyles.text]}>Privacy</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color={themeStyles.subText.color} />
-                    </Pressable>
-                </View>
+                        <Pressable style={[styles.menuItem, themeStyles.card]}>
+                            <View style={styles.menuLeft}>
+                                <Ionicons name="shield-checkmark-outline" size={22} color={themeStyles.icon.color} />
+                                <Text style={[styles.menuText, themeStyles.text]}>Privacy</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color={themeStyles.subText.color} />
+                        </Pressable>
+                    </View>
+                )}
 
                 {/* Data Management Section */}
                 <View style={styles.section}>
@@ -274,6 +366,30 @@ export default function ProfileScreen() {
                         <Ionicons name="chevron-forward" size={20} color={themeStyles.subText.color} />
                     </Pressable>
                 </View>
+
+                {/* Logout Section - Only show if logged in */}
+                {user && (
+                    <View style={styles.section}>
+                        <Pressable
+                            onPress={handleLogout}
+                            style={[
+                                styles.menuItem,
+                                themeStyles.card,
+                                {
+                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(239, 68, 68, 0.3)'
+                                }
+                            ]}
+                        >
+                            <View style={styles.menuLeft}>
+                                <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+                                <Text style={[styles.menuText, { color: '#EF4444', fontWeight: '600' }]}>Logout</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#EF4444" />
+                        </Pressable>
+                    </View>
+                )}
 
                 <View style={{ height: 100 }} />
             </ScrollView>

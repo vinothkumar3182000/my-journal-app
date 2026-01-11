@@ -18,7 +18,7 @@ const DAY_SIZE = CALENDAR_WIDTH / 7;
 interface CalendarViewProps {
     onClose: () => void;
     onDateSelect: (date: Date) => void;
-    onMoodSelect?: (mood: string) => void;
+
 }
 
 const MONTHS = [
@@ -28,7 +28,7 @@ const MONTHS = [
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function CalendarView({ onClose, onDateSelect, onMoodSelect }: CalendarViewProps) {
+export function CalendarView({ onClose, onDateSelect }: CalendarViewProps) {
     const { entries, isDarkMode } = useJournalStore();
     const isDark = isDarkMode;
 
@@ -46,15 +46,7 @@ export function CalendarView({ onClose, onDateSelect, onMoodSelect }: CalendarVi
         }).length;
     };
 
-    // Get mood for date (most recent entry)
-    const getMoodForDate = (date: Date) => {
-        const dateStr = date.toDateString();
-        const dayEntries = entries.filter(entry => {
-            const entryDate = new Date(entry.date);
-            return entryDate.toDateString() === dateStr;
-        });
-        return dayEntries.length > 0 ? dayEntries[0].mood : null;
-    };
+
 
     // Generate calendar days
     const getDaysInMonth = () => {
@@ -92,13 +84,7 @@ export function CalendarView({ onClose, onDateSelect, onMoodSelect }: CalendarVi
         return date.toDateString() === today.toDateString();
     };
 
-    const moodColors: { [key: string]: string } = {
-        amazing: '#10B981',
-        happy: '#3B82F6',
-        neutral: '#8B5CF6',
-        sad: '#F59E0B',
-        terrible: '#EF4444',
-    };
+
 
     const days = getDaysInMonth();
 
@@ -150,7 +136,7 @@ export function CalendarView({ onClose, onDateSelect, onMoodSelect }: CalendarVi
                             }
 
                             const entryCount = getEntryCountForDate(date);
-                            const mood = getMoodForDate(date);
+
                             const hasEntries = entryCount > 0;
                             const isTodayDate = isToday(date);
 
@@ -166,9 +152,7 @@ export function CalendarView({ onClose, onDateSelect, onMoodSelect }: CalendarVi
                                         hasEntries && styles.dayCellWithEntry,
                                         isTodayDate && styles.todayCell,
                                         {
-                                            backgroundColor: hasEntries && mood
-                                                ? moodColors[mood] + '20'
-                                                : isDark ? '#1E293B' : '#FFFFFF',
+                                            backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
                                             opacity: pressed ? 0.7 : 1,
                                         }
                                     ]}
@@ -184,14 +168,7 @@ export function CalendarView({ onClose, onDateSelect, onMoodSelect }: CalendarVi
                                     </Text>
                                     {hasEntries && (
                                         <View style={styles.entryIndicators}>
-                                            {mood && (
-                                                <View
-                                                    style={[
-                                                        styles.moodDot,
-                                                        { backgroundColor: moodColors[mood] }
-                                                    ]}
-                                                />
-                                            )}
+
                                             {entryCount > 1 && (
                                                 <Text style={styles.entryCount}>+{entryCount - 1}</Text>
                                             )}
@@ -203,37 +180,7 @@ export function CalendarView({ onClose, onDateSelect, onMoodSelect }: CalendarVi
                     </View>
                 </View>
 
-                {/* Legend */}
-                <View style={[styles.legend, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
-                    <Text style={[styles.legendTitle, { color: isDark ? '#F1F5F9' : '#0F172A' }]}>
-                        Mood Legend (Tap to filter)
-                    </Text>
-                    <View style={styles.legendItems}>
-                        {Object.entries(moodColors).map(([mood, color]) => (
-                            <Pressable
-                                key={mood}
-                                onPress={() => {
-                                    if (onMoodSelect) {
-                                        onMoodSelect(mood);
-                                        onClose();
-                                    }
-                                }}
-                                style={({ pressed }) => [
-                                    styles.legendItem,
-                                    {
-                                        opacity: pressed ? 0.7 : 1,
-                                        transform: [{ scale: pressed ? 0.95 : 1 }],
-                                    }
-                                ]}
-                            >
-                                <View style={[styles.legendDot, { backgroundColor: color }]} />
-                                <Text style={[styles.legendText, { color: isDark ? '#CBD5E1' : '#475569' }]}>
-                                    {mood.charAt(0).toUpperCase() + mood.slice(1)}
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </View>
-                </View>
+
 
                 {/* Stats */}
                 <View style={[styles.stats, { backgroundColor: isDark ? '#1E293B' : '#FFFFFF' }]}>
